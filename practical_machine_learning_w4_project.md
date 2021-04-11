@@ -260,7 +260,7 @@ mod_random_forest<-train(classe ~ ., data=training ,method="rf", ntree = 100)
 
 The random forest model shows a good accuracy, being able to identify 99.4494% of the observations correctly.
 
-![](practical_machine_learning_w4_project_files/figure-html/random-forest-results-plot -1.png)<!-- -->
+![](practical_machine_learning_w4_project_files/figure-html/random-forest-results-plot-1.png)<!-- -->
 
 #### c) Gradient Boosting Model (GBM)
 
