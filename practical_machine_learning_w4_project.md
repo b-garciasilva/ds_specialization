@@ -1,12 +1,3 @@
----
-title: "DataScienceCousera - W4 Project"
-author: "Bruno Garcia da Silva"
-date: "4/11/2021"
-output:
-  html_document:
-    keep_md: true
----
-
 ## Coursera Practical Machine Learning - Course Project
 ### Human Activity Recognition
 
