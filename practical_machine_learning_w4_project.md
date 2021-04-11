@@ -175,7 +175,7 @@ We will start applying different machine learning techiniques to find the one wi
 modDecisionTree <- train(classe ~ ., data = training, method="rpart")
 ```
 
-![](practical_machine_learning_w4_project_files/figure-html/decision trees chart-1.png)<!-- -->
+![](practical_machine_learning_w4_project_files/figure-html/decision-trees-chart-1.png)<!-- -->
 
 
 ```
@@ -260,7 +260,7 @@ mod_random_forest<-train(classe ~ ., data=training ,method="rf", ntree = 100)
 
 The random forest model shows a good accuracy, being able to identify 99.4494% of the observations correctly.
 
-![](practical_machine_learning_w4_project_files/figure-html/random_forest_results_plot -1.png)<!-- -->
+![](practical_machine_learning_w4_project_files/figure-html/random-forest-results-plot -1.png)<!-- -->
 
 #### c) Gradient Boosting Model (GBM)
 
@@ -311,7 +311,7 @@ model_gbm <-train(classe ~ ., data=training,method="gbm", verbose = FALSE,trCont
 
 The gradient boosting model also shows a good accuracy, being able to identify 96.1052% of the observations correctly.
 
-![](practical_machine_learning_w4_project_files/figure-html/gbm_plot -1.png)<!-- -->
+![](practical_machine_learning_w4_project_files/figure-html/gbm-plot-1.png)<!-- -->
 
 ## Conclusion
 
