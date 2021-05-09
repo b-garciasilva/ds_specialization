@@ -1,0 +1,141 @@
+---
+output: html_document
+title: "Political Party Analysis on Brazilian Elections for 2016 and 2020 in Sao Paulo's Metropolitan Region"
+---
+
+## Developing Data Products - W2 Assignment
+##### Author: Bruno Garcia da Silva
+##### Date: 18-04-2021
+
+# Political Party Analysis on Brazilian Elections for 2016 and 2020 in Sao Paulo's Metropolitan Region
+
+The purpose of this analysis is to verify visually, through the help of maps, the ideological division in the results of Brazilian elections for mayors in the metropolitan region of São Paulo. As its well known, after 2016 Brazil went going through a ideological polarization, culminating with a strong influence of right winged parties, that in 2018 helped elect in the federal elections several righ winged candidates. As it will be seen by the charts, this also reflected in the state election of 2020, where we observed an even stronger concentration of right winged candidates winning the election for mayors in the metropolitan region of Sao Paulo, traditionally dominated by these parties.
+
+## 1.Getting the data
+
+```{r loading libraries, echo=FALSE, message=FALSE, warning=FALSE}
+library(leaflet)
+library(dplyr)
+library(foreign)
+```
+
+For this analysis we will use the library ```leaflet``` to create the maps that will reflect the election results by city. The shape of the maps and the coordinates of the cities can be found in the IBGE website.
+```{r load data - code, eval=FALSE, include=TRUE}
+filepath<-"https://geoftp.ibge.gov.br/organizacao_do_territorio/estrutura_territorial/localidades/Shapefile_SHP/BR_Localidades_2010_v1.dbf"
+dest_file <- paste0(getwd(), "/BR_Localidades_2010_v1.dbf")
+download.file(url=filepath,destfile = dest_file, method="curl")
+city_database <- read.dbf(dest_file)
+```
+
+````{r load data - execution, eval=TRUE, include=FALSE, echo=FALSE}
+filepath<-"https://geoftp.ibge.gov.br/organizacao_do_territorio/estrutura_territorial/localidades/Shapefile_SHP/BR_Localidades_2010_v1.dbf"
+dest_file <- paste0(getwd(), "/BR_Localidades_2010_v1.dbf")
+#download.file(url=filepath,destfile = dest_file, method="curl")
+city_database <- read.dbf(dest_file)
+#file.remove(dest_file)
+```
+
+This analysis will focus in the metropolitan region of Sao Paulo, therefore we will filter our database:
+
+```{r treat_city_base, echo=TRUE}
+reg_metrop <- city_database %>% 
+  filter(NM_UF=='S\xc3O PAULO') %>% 
+  filter(NM_MESO=='METROPOLITANA DE S\xc3O PAULO') %>%
+  filter(NM_CATEGOR=='CIDADE')
+```
+
+Since we want to compare the election results in the map we will get the final results of the elections in 2016 and 2020 from the Tribunal Superior Eleitoral website (1), where we are going to filter the results of the mayors election.
+
+``` {r import, echo=TRUE}
+file_path_2016<- paste0(getwd(),"/votacao_candidato_munzona_2016/votacao_candidato_munzona_2016_SP.csv")
+file_path_2020 <- paste0(getwd(),"/votacao_candidato_munzona_2020/votacao_candidato_munzona_2020_SP.csv")
+
+resultados_sp_2020 <- read.csv2(file_path_2020, sep = ";")
+prefeitos_eleitos_2020 <- resultados_sp_2020 %>% filter (DS_CARGO=='Prefeito') %>% filter(DS_SIT_TOT_TURNO=='ELEITO')
+
+resultados_sp_2016 <- read.csv2(file_path_2016, sep = ";")
+prefeitos_eleitos_2016 <- resultados_sp_2016 %>% filter (DS_CARGO=='Prefeito') %>% filter(DS_SIT_TOT_TURNO=='ELEITO')
+```
+
+We will then merge the results of the elections with the respective coordinates of the cities in the metropolitan region of Sao Paulo:
+
+```{r add_lat_long, echo=TRUE, message=TRUE, warning=FALSE}
+prefeitos_eleitos_2020 <- merge.data.frame(x=prefeitos_eleitos_2020 %>% select("NM_MUNICIPIO","SG_PARTIDO","NM_CANDIDATO"),y=reg_metrop %>% select("NM_MUNICIP","LAT","LONG"),by.y="NM_MUNICIP",by.x="NM_MUNICIPIO", all.y=TRUE) %>% distinct()
+
+prefeitos_eleitos_2016 <- merge.data.frame(x=prefeitos_eleitos_2016 %>% select("NM_MUNICIPIO","SG_PARTIDO","NM_CANDIDATO"),y=reg_metrop %>% select("NM_MUNICIP","LAT","LONG"),by.y="NM_MUNICIP",by.x="NM_MUNICIPIO", all.y=TRUE) %>% distinct()
+```
+
+
+To identify the ideological identification of each party we will take into consideration an classification made by several political scientists, available in this website 
+(2).
+
+The parties will be displayed in the map following the legends below:
+
+- Red: Extreme Left, Left and Center Left parties;
+- Green:Center Parties;
+- Blue: Extreme Right, Right and Center Right parties;
+
+```{r party classification, echo=FALSE}
+party_class_df <-
+rbind(
+   cbind(c("PSTU","PCO","PCB","PSOL"),"Extrema Esquerda","Red")
+  ,cbind(c("PC do B","PT"),"Esquerda","Red")
+  ,cbind(c("PDT","PSB","SOLIDARIEDADE"),"Centro Esquerda","Red")
+  ,cbind(c("REDE","PPS","PV","CIDADANIA"), "Centro","Green")
+  ,cbind(c("PTB","AVANTE","SSD","PMN","PMB","PHS","PP"), "Centro Direita","Blue")
+  ,cbind(c("MDB","PRB","PTN","PMDB","PSDB","PSD","PODE","PPL","PRTB","PRP","PTC","PSL","NOVO","PROS","PR","DC","PROGRESSISTAS","PSC","REPUBLICANOS","PL"),"Direita","Blue")
+  ,cbind(c("DEM","PATRIOTA"),"Extrema Direita","Dark Blue")
+)
+```
+
+```{r include party in the data, include=FALSE}
+party_class_df <- as.data.frame(party_class_df)
+colnames(party_class_df) <-c("Party","Classification","Color")
+
+prefeitos_eleitos_2020<- merge.data.frame(x=prefeitos_eleitos_2020, y=party_class_df, by.x = "SG_PARTIDO",by.y="Party",all.x=TRUE)
+prefeitos_eleitos_2016<- merge.data.frame(x=prefeitos_eleitos_2016, y=party_class_df, by.x = "SG_PARTIDO",by.y="Party",all.x=TRUE)
+
+standard_icon = makeIcon(
+  iconUrl = "https://i.pinimg.com/originals/f2/3f/18/f23f1877ddee5b2fdd9c3d6403e3cf64.png",
+  iconWidth = 31*215/230, iconHeight = 31,
+  iconAnchorX = 16, iconAnchorY = 16
+)
+```
+
+
+## Results
+
+The map below show the results of the elections of 2016. As it can be seen in the map there are a few cities where left winged candidates won the election in that year.
+
+```{r Mapa 2016, echo=TRUE, message=TRUE, warning=TRUE}
+
+result_list_2016 <-  paste0("Cidade:",prefeitos_eleitos_2016$NM_MUNICIPIO,"<br>"
+                       ,"Candidato:",prefeitos_eleitos_2016$NM_CANDIDATO,"<br>"
+                       ,"Partido:",prefeitos_eleitos_2016$SG_PARTIDO,"<br>"
+                       ,"Classificacao:",prefeitos_eleitos_2016$Classification)
+prefeitos_eleitos_2016 %>%
+  leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(color=~Color) %>%
+  addMarkers(popup = result_list_2016, icon=standard_icon)
+```
+
+The result significantly changed in 2020, where we observe a swing towards the center and right wing parties, having just a few candidates from left winged parties winning the elections in 2020.
+
+```{r Mapa 2020, echo=TRUE, message=TRUE, warning=FALSE}
+
+result_list_2020 <-  paste0("Cidade:",prefeitos_eleitos_2020$NM_MUNICIPIO,"<br>"
+                       ,"Candidato:",prefeitos_eleitos_2020$NM_CANDIDATO,"<br>"
+                       ,"Partido:",prefeitos_eleitos_2020$SG_PARTIDO,"<br>"
+                       ,"Classificacao:",prefeitos_eleitos_2020$Classification)
+
+prefeitos_eleitos_2020 %>%
+  leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(color=~Color) %>%
+  addMarkers(popup = result_list_2020, icon=standard_icon)
+```
+
+
+(1) https://www.tse.jus.br/eleicoes/estatisticas/estatisticas-eleitorais
+(2) https://observatoriodaseleicoes.com.br/esquerda-centro-ou-direita-como-classificar-os-partidos-no-brasil/

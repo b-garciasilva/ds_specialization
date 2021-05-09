@@ -1,0 +1,182 @@
+---
+title: "Customer Complaints in Brazil"
+subtitle: "[from Aug-2020 to Apr-2021]"
+author: "Bruno Garcia da Silva"
+date: "May,2021"
+output: 
+  ioslides_presentation:
+    logo: logo.png
+---
+
+```{r setup, include=FALSE,message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+options(width = 60)
+library(plotly)
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+```
+
+## Agenda
+- Objectives and Methodology;
+- Exploratory analysis;
+- Conclusion;
+
+## Objectives and Methodology:
+<font size="2">
+The objective of this analysis is to analyze the quality of service across different business verticals throughout the past 9 months in the Brazilian market. With the outbreak of the COVID-19 in Brazil we'd like to understand how the quality of service has been affected and how the customers were affected. For that we will analyze the evolution of customers complaints from different industries. The complaints were collected from the reports available in the website <https://www.consumidor.gov.br/pages/dadosabertos/externo/>, maintained by the Brazilian government.
+</font>
+
+```{r load_data, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+dates.available <- seq.Date(from=as.Date("2020-08-01", format="%Y-%m-%d")
+                            ,to=as.Date("2021-04-01", format="%Y-%m-%d")
+                            ,by ="month")
+complt.df <- data.frame()
+
+for (i in 1:length(dates.available)) {
+  period <- substring(as.character(dates.available[i]),1,7)
+  
+  tmp.df <- read.csv(file = paste0(getwd(),"/",period,".csv"),header=TRUE,sep=";")  
+  tmp.df$period <- period
+  
+  complt.df <- rbind.data.frame(complt.df,tmp.df)
+}
+
+complt.df$Segmento.de.Mercado.short <- substring(complt.df$Segmento.de.Mercado,1,30)
+
+```
+
+## Objectives and Methodology:
+
+The following variables are available and the dataset contains _`r nrow(complt.df)`_ records:
+```{r variables_available, echo=FALSE}
+print(colnames(complt.df))
+```
+
+We will analyze the evolution mainly by **industry and type of complaint**.
+
+```{r generate_charts, include=FALSE}
+
+## Complaints over time
+
+complt.time.plot <-  complt.df %>% group_by(period) %>% summarise(totl_complt =n(),.groups="drop") %>%
+  plot_ly(x=~as.character(period)) %>% 
+  add_bars(y=~totl_complt, name="# Complaints",color = I("Black")) %>%
+           layout( title = "Complaints over time",
+                   xaxis = list(title = "Period"),
+                   yaxis = list(title = "# of Complaints")
+           ) %>%
+  add_annotations(text =  ~format(totl_complt,digits=0, big.mark = " "),
+                  x = ~period,
+                  y = ~(totl_complt)*.9,
+                  font = list(family = 'Arial',
+                              size = 14,
+                              color = 'rgba(245, 246, 249, 1)'),
+                  showarrow = FALSE)
+
+#Top 5
+top5 <- complt.time.segment.plot <-  complt.df %>% 
+  group_by(Segmento.de.Mercado) %>% 
+  summarise(totl_complt =n(),.groups="drop") %>%
+  arrange(.,totl_complt) %>% 
+  top_n(5)
+
+complt.time.segment.plot <- complt.df %>% 
+  group_by(period,Segmento.de.Mercado) %>% 
+  summarise(totl_complt =n(),.groups="drop") %>%
+  filter(Segmento.de.Mercado %in% top5$Segmento.de.Mercado) %>%
+  plot_ly(x=~as.character(period)) %>% 
+  add_bars(y=~totl_complt, name=~reorder(Segmento.de.Mercado, -totl_complt)) %>% 
+           layout( title = "Complaints over time by Segment",
+                   xaxis = list(title = "Period"),
+                   yaxis = list(title = "# of Complaints"),
+                   barmode="stack"
+           ) %>%
+  layout(legend = list(orientation = 'h',font=list(size=8))
+         )
+
+
+complt.time.type.plot <- complt.df %>% 
+  group_by(period,Grupo.Problema) %>% 
+  summarise(totl_complt =n(),.groups="drop") %>%
+  plot_ly(x=~as.character(period)) %>% 
+  add_bars(y=~totl_complt, name=~reorder(Grupo.Problema, -totl_complt)) %>% 
+           layout( title = "Complaints over time by Issue Type",
+                   xaxis = list(title = "Period"),
+                   yaxis = list(title = "# of Complaints"),
+                   barmode="stack"
+           ) %>%
+  layout(legend = list(orientation = 'h',font=list(size=8))
+         )
+
+complt.time.type.seg.plot <- complt.df %>% 
+  filter(Segmento.de.Mercado %in% top5$Segmento.de.Mercado) %>%
+  group_by(period,Grupo.Problema, Segmento.de.Mercado.short ) %>% 
+  summarise(totl_complt =n(),.groups="drop") %>%
+  ggplot(aes(x=period,y=totl_complt, fill=reorder(Grupo.Problema,totl_complt))) + 
+    geom_bar(position = "stack",stat="identity") + 
+    facet_wrap(. ~ Segmento.de.Mercado.short 
+               , ncol = 2
+    ) + 
+    theme_bw() + 
+    theme(strip.text = element_text(size = 8),
+              axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+              legend.title = element_blank(),
+              legend.position = 
+              ) +
+  xlab("") + ylab("")
+complt.time.type.seg.plot <- ggplotly(complt.time.type.seg.plot)
+```
+
+## Exloratory Analysis
+
+#### Analysis over time 
+<font size="2">
+Over time the complaints remained quite stable on a monthly basis, although we observed an increase in the the last 2 months.
+</font>
+
+```{r chart1, echo=FALSE,out.width="600px", out.height="300px"}
+complt.time.plot
+```
+
+
+## Exloratory Analysis
+
+#### Analysis by Segment
+<font size="2">
+Analysing over segments we don't see significant variations over time despite "Banks & Credit Card Companies" have had some increasing trend up to December/2020 the trend seems to have corrected after that. Together with Mobile Companies, Banks and Credit Card companies account for the majority of the complaints over time.
+</font>
+```{r chart2, echo=FALSE,out.width="600px", out.height="300px"}
+complt.time.segment.plot
+```
+
+## Exloratory Analysis
+
+#### Analysis by Issue Type
+<font size="2">
+Observing the complaints by issue type we can't see any specific concentration at an issue type.Despite some marginal increase in complaints related to "Service Quality", the main complaints were mostly concentrated on improper charges and misleading contract/offers.
+</font>
+
+```{r chart4, echo=FALSE,out.width="600px", out.height="350px"}
+complt.time.type.plot
+```
+
+## Exloratory Analysis
+
+#### Analysis by Segment and Issue Type
+<font size="2">
+Observing the complaints by type and segment we can observe a slight upward trend on "Improper Charges" for Airline Companies, although the mojority of the complaints on Banks and Mobile Phone companies are also focused on the same issue and is the one sustaining the numbers high.
+</font>
+
+```{r chart5, echo=FALSE,out.width="600px", out.height="350px"}
+complt.time.type.seg.plot
+```
+
+
+## Conclusion
+<font size="2">
+All in all, the data does not indicate any significant change in the types of complaints, neither by segment nor issue type over time, which could indicate that the pandemy might not have influentiated the quality of the service of the companies.
+</font>
+
+
+## **Thank you!**
